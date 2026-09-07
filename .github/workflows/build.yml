@@ -45,10 +45,12 @@ jobs:
       - name: Build Bootloader (BL2 + FIP)
         working-directory: upstream
         run: |
-          VERSION="${{ inputs.version || 'SP2' }}"
-          VARIANT="${{ matrix.variant }}"
+          export SOC=mt7981
+          export BOARD=cmcc_xr30
+          export VERSION="${{ inputs.version || 'SP2' }}"
+          export VARIANT="${{ matrix.variant }}"
           chmod +x ./build.sh
-          ./build.sh SOC=mt7981 BOARD=cmcc_xr30 VERSION="$VERSION" VARIANT="$VARIANT"
+          ./build.sh
 
       - name: Prepare Artifacts
         run: |
