@@ -1,0 +1,10 @@
+# Build artifacts
+release/
+release_files/
+artifacts/
+all_artifacts/
+upstream/
+output/
+*.bin
+*.img
+*.tar.gz
