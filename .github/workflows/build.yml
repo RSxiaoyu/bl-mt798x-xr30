@@ -1,17 +1,7 @@
-name: Build CMCC XR30 Modern Bootloader
+name: Build CMCC XR30 Ubootmod Bootloader
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'ATF Version'
-        required: true
-        default: 'SP2'
-        type: choice
-        options:
-          - 'SP2'
-          - '2025'
-          - 'SP1'
   push:
     branches:
       - main
@@ -25,9 +15,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        variant: [ubootmod, nonmbm]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -47,64 +34,40 @@ jobs:
         run: |
           export SOC=mt7981
           export BOARD=cmcc_xr30
-          export VERSION="${{ inputs.version || 'SP2' }}"
-          export VARIANT="${{ matrix.variant }}"
+          export VERSION=SP2
+          export VARIANT=ubootmod
           chmod +x ./build.sh
           ./build.sh
 
-      - name: Prepare Artifacts
+      - name: Organize outputs
         run: |
-          mkdir -p artifacts
-          cp -v upstream/output/* artifacts/
-          ls -lh artifacts/
+          mkdir -p release
+          cp -v upstream/output/bl2-*.img release/bl2-mt7981-cmcc_xr30-ubootmod.bin
+          cp -v upstream/output/fip-*.bin release/fip-mt7981-cmcc_xr30-ubootmod.bin
+          ls -lh release/
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: xr30-${{ matrix.variant }}-${{ inputs.version || 'SP2' }}
-          path: artifacts/*
-
-  release:
-    needs: build
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: all_artifacts
-
-      - name: Flatten artifacts for release
-        run: |
-          mkdir -p release_files
-          find all_artifacts/ -type f -exec cp -v {} release_files/ \;
-          ls -lh release_files/
+          name: cmcc_xr30-ubootmod
+          path: release/*
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: release-${{ github.run_number }}
-          name: "CMCC XR30 Bootloader (SP2 ubootmod & nonmbm)"
+          tag_name: ubootmod-${{ github.run_number }}
+          name: "CMCC XR30 Ubootmod Bootloader"
           body: |
-            ## 🚀 CMCC XR30 Modern Bootloader Release
-            
-            Built directly from [Yuzhii0718/bl-mt798x-dhcpd](https://github.com/Yuzhii0718/bl-mt798x-dhcpd) upstream with zero redundant modifications.
-            
-            ### 硬件特性
-            - **设备**：中国移动 CMCC XR30
-            - **SoC**：MediaTek MT7981B (Filogic 820)
-            - **内存配置**：DDR4 512MB
-            - **闪存兼容**：全面兼容兆易创新 GigaDevice `GD5F1GM7UExxG` 及其他标准 SPI-NAND
-            
-            ### 包含固件变体
-            1. **`ubootmod` (强烈推荐用于 OpenWrt / ImmortalWrt)**：
-               - 禁用 MTK-NMBM 坏块映射，改用 Linux 原生 MTD
-               - 环境变量写入 UBI 卷 (`ubootenv` / `ubootenv2`)，彻底解决 `-5` 擦写失败
-               - 原生支持 All-in-FIT 单固件与 Web Failsafe 内存直接引导 (`/initramfs.html`)
-            2. **`nonmbm`**：
-               - 禁用 MTK-NMBM 坏块映射，保持标准 raw MTD 分区布局
-            
-            ### 内置能力
-            - 现代化 Bootstrap Failsafe Web 界面 (`http://192.168.1.1` 或 `http://failsafe.lan`)
-            - 内置 DHCP 服务器（网线直连无需手动配置电脑静态 IP）
-            - 独立的 `factory` 分区保护
-          files: release_files/*
+            ## 🚀 CMCC XR30 Ubootmod 专用 Bootloader
+
+            专为 **中国移动 CMCC XR30 (MT7981B + 512MB DDR4 + 兆易创新 GD5F1GM7 SPI-NAND)** 打造的纯粹 ubootmod 架构 Bootloader。
+
+            - **源码基准**：[Yuzhii0718/bl-mt798x-dhcpd](https://github.com/Yuzhii0718/bl-mt798x-dhcpd) (ATF SP2 + U-Boot 20250711)
+            - **变体架构**：`ubootmod` (彻底废除 NMBM，原生 MTD 直通，环境变量持久化于 UBI 卷)
+            - **适配固件**：OpenWrt / [ImmortalWrt 25.12 All-in-FIT 单固件](https://github.com/RSxiaoyu/immortalwrt-xr30)
+            - **Web 恢复控制台**：`http://192.168.1.1` (内置 DHCP 服务，直连即用)
+
+            ### 包含文件
+            - `bl2-mt7981-cmcc_xr30-ubootmod.bin`：升级 ATF BL2
+            - `fip-mt7981-cmcc_xr30-ubootmod.bin`：升级 U-Boot FIP
+          files: release/*

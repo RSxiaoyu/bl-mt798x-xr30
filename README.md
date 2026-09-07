@@ -1,18 +1,18 @@
-# CMCC XR30 Modern Bootloader (BL2 + FIP)
+# CMCC XR30 Ubootmod Bootloader (BL2 + FIP)
 
-[![Build CMCC XR30 Modern Bootloader](https://github.com/RSxiaoyu/bl-mt798x-xr30/actions/workflows/build.yml/badge.svg)](https://github.com/RSxiaoyu/bl-mt798x-xr30/actions/workflows/build.yml)
+[![Build CMCC XR30 Ubootmod Bootloader](https://github.com/RSxiaoyu/bl-mt798x-xr30/actions/workflows/build.yml/badge.svg)](https://github.com/RSxiaoyu/bl-mt798x-xr30/actions/workflows/build.yml)
 
-专为**中国移动 CMCC XR30** 路由器打造的极简、高性能、现代化 Bootloader 自动构建仓库。
+专为**中国移动 CMCC XR30** 路由器量身打造的极简、高性能、现代化 `ubootmod` Bootloader 自动构建仓库。
 
-源码直通上游官方 [Yuzhii0718/bl-mt798x-dhcpd](https://github.com/Yuzhii0718/bl-mt798x-dhcpd)，零冗余修改，完全依赖上游规范。
+直通上游官方 [Yuzhii0718/bl-mt798x-dhcpd](https://github.com/Yuzhii0718/bl-mt798x-dhcpd)，追求零冗余配置，专注于最佳适配方案。
 
 ---
 
-## 🌟 核心特性与设计优势
+## 🌟 为什么必须使用 `ubootmod`？
 
 1. **彻底解决兆易创新 (GigaDevice) NAND 坏块死锁与擦除报错 `-5`**：
-   - 官方 Release 的默认版本强开 MTK-NMBM 坏块映射，在 GD5F1GM7 芯片上会误判坏块导致备用表溢出只读，且将 U-Boot 环境变量直接存放在 Raw MTD 上，导致擦写频繁报错 `-5` (`-EIO`)。
-   - 本仓库构建的 **`ubootmod`** 变体彻底废除 NMBM，改用 Linux 原生 `spi-nand0` 直通。
+   - 官方 Release 默认版本强开 MTK-NMBM 坏块映射，在 GD5F1GM7 芯片上会误判坏块导致备用表溢出只读，且将 U-Boot 环境变量直接存放在 Raw MTD 上，导致擦写频繁报错 `-5` (`-EIO`) 与 `save failed`。
+   - 本仓库的 **`ubootmod`** 变体彻底废除 NMBM，改用 Linux 原生 `spi-nand0` 直通。
    - 环境变量完全迁移至 UBI 卷 (`ubootenv` / `ubootenv2`)，具备 UBI 磨损均衡与透明坏块屏蔽，永久告别 `saveenv` 失败。
 
 2. **原生 All-in-FIT 单固件支持**：
@@ -24,7 +24,6 @@
    - 基于 Bootstrap 的现代化响应式 Web 界面（支持中英文切换）。
    - 内置 **DHCP 服务器**：网线直连路由器任意 LAN 口自动分配 IP，无需电脑手动设置静态 IP。
    - 访问地址：`http://192.168.1.1` 或 `http://failsafe.lan`。
-   - 支持一键备份全盘与 Factory 分区。
 
 4. **独立 Factory 分区保护**：
    - 分区表单独保留 2MB `factory` 分区（`0x180000 - 0x380000`），确保原厂 Wi-Fi 校准参数与 MAC 地址绝对安全。
@@ -42,15 +41,6 @@
 
 ---
 
-## 📦 固件变体说明
-
-| 变体名称 | 适用场景与固件类型 | 说明 |
-| :--- | :--- | :--- |
-| **`ubootmod`** *(强烈推荐)* | **ImmortalWrt 24.10/25.12、OpenWrt 官方 ubootmod FIT 固件** | 彻底关闭 NMBM，环境变量写入 UBI 卷，支持 All-in-FIT 单固件，无任何报错 |
-| **`nonmbm`** | **传统/第三方无 NMBM 固件** | 关闭 NMBM，但保留传统 raw MTD 分区与环境变量 |
-
----
-
 ## 🛠️ 刷入指南
 
 ### 1. 进入现有 U-Boot Web Failsafe
@@ -60,9 +50,10 @@
 4. 电脑网线连接 LAN 口，浏览器打开 `http://192.168.1.1/`。
 
 ### 2. 更新 Bootloader
-1. 在 Web 页面进入 **升级 ATF BL2**（Upgrade BL2），上传 `bl2-mt7981_cmcc_xr30_SP2*.bin` 并刷入。
-2. 在 Web 页面进入 **升级 U-Boot**（Upgrade FIP），上传 `fip-mt7981_cmcc_xr30_SP2*-fit.bin` 并刷入。
-3. 设备重启后即刻拥有全新的 ubootmod 现代引导环境！
+前往 [Releases 页面](https://github.com/RSxiaoyu/bl-mt798x-xr30/releases) 下载最新产物：
+1. 在 Web 页面进入 **升级 ATF BL2**（Upgrade BL2），上传 `bl2-mt7981-cmcc_xr30-ubootmod.bin` 并刷入。
+2. 在 Web 页面进入 **升级 U-Boot**（Upgrade FIP），上传 `fip-mt7981-cmcc_xr30-ubootmod.bin` 并刷入。
+3. 重启设备后即刻拥有纯粹的 ubootmod 现代引导环境！
 
 ---
 
