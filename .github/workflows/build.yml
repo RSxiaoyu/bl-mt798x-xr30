@@ -2,6 +2,12 @@ name: Build CMCC XR30 Ubootmod Bootloader
 
 on:
   workflow_dispatch:
+    inputs:
+      force_build:
+        description: 'Force build even if upstream commit is unchanged'
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: '0 20 * * 0' # Weekly at 04:00 Beijing time every Monday
   push:
@@ -15,12 +21,73 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  UPSTREAM_REPO: https://github.com/Yuzhii0718/bl-mt798x-dhcpd
+  UPSTREAM_BRANCH: main
+
 permissions:
   contents: write
 
 jobs:
-  build:
+  check_upstream:
+    name: Check Upstream Changes
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      upstream_sha: ${{ steps.check.outputs.upstream_sha }}
+      upstream_short_sha: ${{ steps.check.outputs.upstream_short_sha }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check upstream commit
+        id: check
+        run: |
+          UPSTREAM_SHA=$(git ls-remote ${{ env.UPSTREAM_REPO }}.git refs/heads/${{ env.UPSTREAM_BRANCH }} | awk '{print $1}')
+          if [ -z "$UPSTREAM_SHA" ]; then
+            echo "Error: Failed to fetch upstream SHA from git ls-remote!"
+            exit 1
+          fi
+          SHORT_SHA="${UPSTREAM_SHA:0:7}"
+          echo "upstream_sha=$UPSTREAM_SHA" >> $GITHUB_OUTPUT
+          echo "upstream_short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.force_build }}" = "true" ]; then
+              echo "Manual force build requested. Starting build."
+              echo "should_build=true" >> $GITHUB_OUTPUT
+            else
+              if gh release list --repo "${{ github.repository }}" --json tagName -q ".[].tagName" | grep -q "${SHORT_SHA}"; then
+                echo "Release for upstream commit ${SHORT_SHA} already exists. Skipping build."
+                echo "should_build=false" >> $GITHUB_OUTPUT
+              else
+                echo "New upstream commit ${SHORT_SHA} detected. Starting build."
+                echo "should_build=true" >> $GITHUB_OUTPUT
+              fi
+            fi
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            echo "Push event detected. Starting build."
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          else
+            if gh release list --repo "${{ github.repository }}" --json tagName -q ".[].tagName" | grep -q "${SHORT_SHA}"; then
+              echo "Release for upstream commit ${SHORT_SHA} already exists. Skipping build."
+              echo "should_build=false" >> $GITHUB_OUTPUT
+            else
+              echo "New upstream commit ${SHORT_SHA} detected. Starting build."
+              echo "should_build=true" >> $GITHUB_OUTPUT
+            fi
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    name: Build Bootloader
+    needs: check_upstream
+    if: needs.check_upstream.outputs.should_build == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,8 +100,7 @@ jobs:
 
       - name: Clone Yuzhii bl-mt798x-dhcpd upstream
         run: |
-          git clone --depth 1 https://github.com/Yuzhii0718/bl-mt798x-dhcpd.git upstream
-          echo "UPSTREAM_SHA=$(git -C upstream rev-parse --short HEAD)" >> $GITHUB_ENV
+          git clone --depth 1 ${{ env.UPSTREAM_REPO }}.git -b ${{ env.UPSTREAM_BRANCH }} upstream
 
       - name: Build Bootloader (BL2 + FIP)
         working-directory: upstream
@@ -49,29 +115,27 @@ jobs:
       - name: Organize outputs & generate checksums
         run: |
           mkdir -p release
-          cp -v upstream/output/bl2-*.img release/bl2-mt7981-cmcc_xr30-ubootmod.bin
-          cp -v upstream/output/fip-*.bin release/fip-mt7981-cmcc_xr30-ubootmod.bin
+          BL2_FILE=$(find upstream/output -name "bl2-*.img" | head -n 1)
+          FIP_FILE=$(find upstream/output -name "fip-*.bin" | head -n 1)
+          [ -f "$BL2_FILE" ] && cp -v "$BL2_FILE" release/bl2-mt7981-cmcc_xr30-ubootmod.bin
+          [ -f "$FIP_FILE" ] && cp -v "$FIP_FILE" release/fip-mt7981-cmcc_xr30-ubootmod.bin
           cd release
           sha256sum * > sha256sums
           ls -lh
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: cmcc_xr30-ubootmod
-          path: release/*
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ubootmod-${{ env.UPSTREAM_SHA }}-${{ github.run_number }}
-          name: "CMCC XR30 Ubootmod Bootloader (${{ env.UPSTREAM_SHA }})"
+          tag_name: ubootmod-${{ needs.check_upstream.outputs.upstream_short_sha }}
+          name: "CMCC XR30 Ubootmod Bootloader (${{ needs.check_upstream.outputs.upstream_short_sha }})"
           body: |
             ## CMCC XR30 Ubootmod 专用 Bootloader
 
             专为 **中国移动 CMCC XR30 (MT7981B + 512MB DDR4 + 兆易创新 GD5F1GM7 SPI-NAND)** 打造的纯粹 ubootmod 架构 Bootloader。
 
-            - **源码基准**：[Yuzhii0718/bl-mt798x-dhcpd @ ${{ env.UPSTREAM_SHA }}](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/commit/${{ env.UPSTREAM_SHA }}) (ATF SP2 + U-Boot 20250711)
+            - **源码基准**：[Yuzhii0718/bl-mt798x-dhcpd @ ${{ needs.check_upstream.outputs.upstream_sha }}](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/commit/${{ needs.check_upstream.outputs.upstream_sha }}) (ATF SP2 + U-Boot 20250711)
             - **变体架构**：`ubootmod` (彻底废除 NMBM，原生 MTD 直通，环境变量持久化于 UBI 卷)
             - **适配固件**：OpenWrt / [ImmortalWrt 25.12 All-in-FIT 单固件](https://github.com/RSxiaoyu/immortalwrt-xr30)
             - **Web 控制台**：`http://192.168.1.1` (内置 DHCP 服务，直连即用)
