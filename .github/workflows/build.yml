@@ -22,7 +22,7 @@ concurrency:
 
 env:
   UPSTREAM_REPO: https://github.com/Yuzhii0718/bl-mt798x-dhcpd
-  UPSTREAM_BRANCH: main
+  UPSTREAM_BRANCH: master
 
 permissions:
   contents: write
