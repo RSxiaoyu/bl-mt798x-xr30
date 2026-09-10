@@ -1,25 +1,36 @@
-# CMCC XR30 Ubootmod Bootloader (BL2 + FIP)
+# Ubootmod Bootloader for CMCC XR30
 
 [![Build](https://github.com/RSxiaoyu/bl-mt798x-xr30/actions/workflows/build.yml/badge.svg)](https://github.com/RSxiaoyu/bl-mt798x-xr30/actions/workflows/build.yml)
 
-专为 **中国移动 CMCC XR30** 打造的纯粹现代 `ubootmod` Bootloader 自动构建仓库。
+**中国移动 CMCC XR30** 专用 U-Boot 引导链（ATF BL2 + U-Boot FIP）。
 
-## 特性
-- **根治坏块死锁**：彻底废除 MTK-NMBM 坏块映射，杜绝兆易 GD5F1GM7 闪存 `-5` 擦写报错与死锁。
-- **UBI 环境变量**：环境变量迁移至 UBI 卷 (`ubootenv` / `ubootenv2`)，磨损均衡，原生透明屏蔽坏块。
-- **现代化 Failsafe**：内置 DHCP 服务，网线直连 LAN 口自动分配 IP，浏览器打开 `http://192.168.1.1` 即可恢复。
-- **FIT 原生支持**：完美适配 [ImmortalWrt 25.12 All-in-FIT 单固件](https://github.com/RSxiaoyu/immortalwrt-xr30)，支持 Web 界面直接刷写 `sysupgrade.itb` 与纯内存加载 `recovery.itb`。
-- **出厂校准保护**：单独保留 2MB 独立 `factory` 分区（`0x180000 - 0x380000`），确保原厂 Wi-Fi 校准参数与 MAC 地址绝对安全。
+## 上游
 
-## 硬件规格
-| 项 | 规格 |
-| :--- | :--- |
-| **SoC** | MediaTek MT7981B (双核 Cortex-A53 @ 1.3GHz) |
-| **内存 / 闪存** | 512MB DDR4 / 128MB SPI-NAND (GD5F1GM7 等) |
-| **交换机芯片** | MT7531AE (2.5G SGMII / GMII) |
+上游为 [Yuzhii0718/bl-mt798x-dhcpd](https://github.com/Yuzhii0718/bl-mt798x-dhcpd)（`master` 分支，内置 DHCP 的 bl-mt798x 分支）。本仓库**零补丁、零 fork**，CI 以环境变量直调上游 `build.sh`：
 
-## 刷入指南
-在现有 U-Boot Web 界面（`192.168.1.1`）中：
-1. **升级 ATF BL2**：上传 `bl2-mt7981-cmcc_xr30-ubootmod.bin` 刷入。
-2. **升级 U-Boot FIP**：上传 `fip-mt7981-cmcc_xr30-ubootmod.bin` 刷入。
-3. 重启设备后即刻拥有纯粹的 ubootmod 现代引导环境。
+```sh
+SOC=mt7981 BOARD=cmcc_xr30 VERSION=SP2 VARIANT=ubootmod ./build.sh
+```
+
+Release tag 按上游 commit 编址：同一上游 commit 的重复构建原地更新既有 Release。
+
+## ubootmod 特性（上游自带）
+
+- 移除 MTK-NMBM 坏块映射，原生 MTD/UBI 直通
+- 环境变量持久化于 UBI 卷（`ubootenv` / `ubootenv2`），磨损均衡
+- Web 恢复控制台：LAN 口 DHCP + 浏览器打开 `http://192.168.1.1`，直接刷写 FIT 固件（`sysupgrade.itb` / `recovery.itb`）
+- `factory` 分区（`0x180000-0x380000`）不触碰，保留原厂 Wi-Fi 校准与 MAC
+
+## 产物
+
+| 文件 | 用途 |
+|---|---|
+| `bl2-mt7981-cmcc_xr30-ubootmod.bin` | 升级 ATF BL2 |
+| `fip-mt7981-cmcc_xr30-ubootmod.bin` | 升级 U-Boot FIP |
+| `sha256sums` | 完整性校验 |
+
+## 刷写
+
+在现有 U-Boot Web 界面（`192.168.1.1`）中依次上传 BL2、FIP，重启即完成。
+
+适配固件：[immortalwrt-xr30](https://github.com/RSxiaoyu/immortalwrt-xr30)（All-in-FIT 单镜像）。

@@ -116,17 +116,7 @@ jobs:
           tag_name: ubootmod-${{ needs.check_upstream.outputs.upstream_short_sha }}
           name: "CMCC XR30 Ubootmod Bootloader (${{ needs.check_upstream.outputs.upstream_short_sha }})"
           body: |
-            ## CMCC XR30 Ubootmod 专用 Bootloader
-
-            专为 **中国移动 CMCC XR30 (MT7981B + 512MB DDR4 + 兆易创新 GD5F1GM7 SPI-NAND)** 打造的纯粹 ubootmod 架构 Bootloader。
-
-            - **源码基准**：[Yuzhii0718/bl-mt798x-dhcpd @ ${{ needs.check_upstream.outputs.upstream_sha }}](https://github.com/Yuzhii0718/bl-mt798x-dhcpd/commit/${{ needs.check_upstream.outputs.upstream_sha }}) (ATF SP2 + U-Boot 20250711)
-            - **变体架构**：`ubootmod` (彻底废除 NMBM，原生 MTD 直通，环境变量持久化于 UBI 卷)
-            - **适配固件**：OpenWrt / [ImmortalWrt 25.12 All-in-FIT 单固件](https://github.com/RSxiaoyu/immortalwrt-xr30)
-            - **Web 控制台**：`http://192.168.1.1` (内置 DHCP 服务，直连即用)
-
-            ### 包含文件
-            - `bl2-mt7981-cmcc_xr30-ubootmod.bin`：升级 ATF BL2
-            - `fip-mt7981-cmcc_xr30-ubootmod.bin`：升级 U-Boot FIP
-            - `sha256sums`：文件完整性校验值
+            - **上游**: [Yuzhii0718/bl-mt798x-dhcpd](https://github.com/Yuzhii0718/bl-mt798x-dhcpd) @ `${{ needs.check_upstream.outputs.upstream_sha }}` (master) — 零补丁，环境变量直调 build.sh (SOC=mt7981 BOARD=cmcc_xr30 VARIANT=ubootmod)
+            - **ubootmod**: 移除 NMBM，UBI 环境变量，Web 恢复控制台 `http://192.168.1.1`
+            - **适配固件**: [immortalwrt-xr30](https://github.com/RSxiaoyu/immortalwrt-xr30) (All-in-FIT 单镜像)
           files: release/*
